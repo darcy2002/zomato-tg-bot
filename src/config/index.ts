@@ -11,6 +11,8 @@ const envSchema = z.object({
   ZOMATO_MCP_URL: z.string().url().optional(),
   API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().min(1).optional(),
+  TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
+  BACKEND_URL: z.string().url().optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;

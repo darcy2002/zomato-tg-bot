@@ -21,7 +21,7 @@ Node.js (TypeScript) backend for a Telegram bot that allows users to order food 
 
    ```bash
    cp .env.example .env
-   # Set DATABASE_URL; optionally OPENAI_API_KEY (for LLM intent recognition) and ZOMATO_MCP_URL
+   # Set DATABASE_URL; optionally OPENAI_API_KEY, ZOMATO_MCP_URL; for Telegram set TELEGRAM_BOT_TOKEN and BACKEND_URL
    ```
 
    **Intent recognition:** If `OPENAI_API_KEY` is set, natural-language intent resolution uses OpenAI (GPT-4o-mini). If unset or the API fails, the pipeline falls back to rule-based (regex) resolution.
@@ -48,6 +48,19 @@ Node.js (TypeScript) backend for a Telegram bot that allows users to order food 
    - `GET /health` — Liveness
    - `GET /health/ready` — Readiness (DB check)
 
+## Telegram Bot
+
+The Telegram bot is a thin client in the same repo. It receives messages, calls the backend API, and sends replies plus inline keyboards from `suggested_actions`.
+
+1. **Create a bot** with [@BotFather](https://t.me/BotFather) and copy the token.
+2. **Set env** in `.env`:
+   - `TELEGRAM_BOT_TOKEN=...` (from BotFather)
+   - `BACKEND_URL=http://localhost:3000` (or your API base URL)
+3. **Run the API server** in one terminal: `npm run dev`
+4. **Run the bot** in another terminal: `npm run dev:telegram` (or `npm run telegram` after `npm run build`)
+
+The bot uses long polling. Users send text → backend returns reply and suggested actions → bot shows reply and inline buttons; tapping a button calls `/conversation/execute` and shows the next reply.
+
 ## Project Structure
 
 ```
@@ -58,9 +71,11 @@ src/
 ├── services/         # Session, intent pipeline, discovery, cart, order
 ├── routes/           # Fastify route modules
 ├── schemas/          # JSON Schema for validation
+├── telegram/         # Telegram bot (Telegraf): api-client, bot, callback-store, config
 ├── middleware/       # Error handler
 ├── lib/              # Errors, shared types
-└── index.ts          # App entry
+├── index.ts          # API server entry
+└── telegram/index.ts # Bot entry (npm run dev:telegram)
 ```
 
 ## Core Principles
