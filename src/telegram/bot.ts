@@ -1,14 +1,18 @@
 /**
- * Telegraf bot: receives messages and callbacks, calls backend API, sends replies and keyboards.
+ * Telegraf bot: receives messages and callbacks.
+ * When GEMINI_CLI_PATH is set, text messages are sent to Gemini CLI and the reply is sent back.
+ * Otherwise, calls backend API and sends replies with optional inline keyboards.
  */
 import { Telegraf, Markup } from "telegraf";
 import type { Context } from "telegraf";
 import { getTelegramConfig } from "./config.js";
 import { createApiClient, BackendApiError } from "./api-client.js";
 import { storeCallback, getCallback, deleteCallback } from "./callback-store.js";
+import { sendViaSession } from "./gemini-session.js";
+import { appendTurn } from "./conversation-history.js";
 
-const { token, backendUrl } = getTelegramConfig();
-const api = createApiClient(backendUrl);
+const { token, backendUrl, geminiCliPath } = getTelegramConfig();
+const api = backendUrl ? createApiClient(backendUrl) : null;
 
 const bot = new Telegraf(token);
 
@@ -49,8 +53,31 @@ bot.on("message", async (ctx) => {
     return;
   }
 
+  if (geminiCliPath) {
+    const chatId = ctx.chat?.id;
+    try {
+      const statusMsg = await ctx.reply("Thinking…");
+      // Single persistent session: send only current message; Gemini keeps context.
+      const result = await sendViaSession(text, { cliPath: geminiCliPath });
+      await ctx.telegram.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {});
+      if (result.ok) {
+        if (typeof chatId === "number") {
+          appendTurn(chatId, "user", text);
+          appendTurn(chatId, "assistant", result.response);
+        }
+        await ctx.reply(result.response);
+      } else {
+        await ctx.reply(`Sorry, something went wrong: ${result.error}`);
+      }
+    } catch (err) {
+      console.error("Gemini session error:", err);
+      await ctx.reply("Something went wrong. Please try again.");
+    }
+    return;
+  }
+
   const telegramUserId = ctx.from?.id;
-  if (!telegramUserId) return;
+  if (!telegramUserId || !api) return;
 
   try {
     const session = await api.createOrGetSession("telegram", String(telegramUserId));
@@ -78,11 +105,21 @@ bot.on("callback_query", async (ctx) => {
     return;
   }
 
+  if (geminiCliPath) {
+    await ctx.answerCbQuery("Please send a text message to chat.");
+    return;
+  }
+
   const payload = getCallback(callbackId);
   deleteCallback(callbackId);
 
   if (!payload) {
     await ctx.answerCbQuery("This action expired. Send a new message.");
+    return;
+  }
+
+  if (!api) {
+    await ctx.answerCbQuery("Something went wrong.");
     return;
   }
 

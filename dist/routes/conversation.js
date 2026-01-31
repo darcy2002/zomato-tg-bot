@@ -41,8 +41,19 @@ export default async function conversationRoutes(app) {
                     });
                 });
             }
-            catch (_e) {
-                replyText = "Sorry, I couldn’t search restaurants right now.";
+            catch (e) {
+                console.error("[discover_restaurants] Zomato MCP failed:", e instanceof Error ? e.message : e);
+                const stub = discoveryService.getStubRestaurants(query, 5);
+                data = { restaurants: stub };
+                replyText = `Zomato isn’t available from this environment (e.g. domain not whitelisted). Here are some sample restaurants for demo:`;
+                stub.forEach((r) => {
+                    suggested_actions.push({
+                        id: `view_menu_${r.id}`,
+                        label: `View menu: ${r.name}`,
+                        action: "view_menu",
+                        params: { restaurant_id: r.id },
+                    });
+                });
             }
         }
         else if (intent.name === "view_menu" && intent.resolved_params.restaurant_id) {
@@ -51,8 +62,11 @@ export default async function conversationRoutes(app) {
                 data = { menu: menuResult };
                 replyText = `Menu for ${menuResult.restaurant.name}.`;
             }
-            catch (_e) {
-                replyText = "Could not load menu.";
+            catch (e) {
+                console.error("[view_menu] Zomato MCP failed:", e instanceof Error ? e.message : e);
+                const stubMenu = discoveryService.getStubMenu(intent.resolved_params.restaurant_id);
+                data = { menu: stubMenu };
+                replyText = `Zomato isn’t available here. Sample menu for "${stubMenu.restaurant.name}":`;
             }
         }
         else if (intent.name === "view_cart") {
@@ -89,8 +103,11 @@ export default async function conversationRoutes(app) {
                 data = { menu: menuResult };
                 replyText = `Menu for ${menuResult.restaurant.name}.`;
             }
-            catch (_e) {
-                replyText = "Could not load menu.";
+            catch (e) {
+                console.error("[view_menu execute] Zomato MCP failed:", e instanceof Error ? e.message : e);
+                const stubMenu = discoveryService.getStubMenu(params.restaurant_id);
+                data = { menu: stubMenu };
+                replyText = `Zomato isn’t available here. Sample menu for "${stubMenu.restaurant.name}":`;
             }
         }
         return reply.send({

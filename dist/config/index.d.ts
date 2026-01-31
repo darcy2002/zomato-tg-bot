@@ -12,6 +12,8 @@ declare const envSchema: z.ZodObject<{
     OPENAI_API_KEY: z.ZodOptional<z.ZodString>;
     TELEGRAM_BOT_TOKEN: z.ZodOptional<z.ZodString>;
     BACKEND_URL: z.ZodOptional<z.ZodString>;
+    /** When set, Telegram bot uses Gemini CLI for replies (e.g. "gemini" or "npx"). */
+    GEMINI_CLI_PATH: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     NODE_ENV: "development" | "test" | "production";
     PORT: number;
@@ -22,6 +24,7 @@ declare const envSchema: z.ZodObject<{
     OPENAI_API_KEY?: string | undefined;
     TELEGRAM_BOT_TOKEN?: string | undefined;
     BACKEND_URL?: string | undefined;
+    GEMINI_CLI_PATH?: string | undefined;
 }, {
     DATABASE_URL: string;
     NODE_ENV?: "development" | "test" | "production" | undefined;
@@ -32,6 +35,7 @@ declare const envSchema: z.ZodObject<{
     OPENAI_API_KEY?: string | undefined;
     TELEGRAM_BOT_TOKEN?: string | undefined;
     BACKEND_URL?: string | undefined;
+    GEMINI_CLI_PATH?: string | undefined;
 }>;
 export type Config = z.infer<typeof envSchema>;
 export declare function loadConfig(): Config;
@@ -45,6 +49,7 @@ export declare const config: {
     OPENAI_API_KEY?: string | undefined;
     TELEGRAM_BOT_TOKEN?: string | undefined;
     BACKEND_URL?: string | undefined;
+    GEMINI_CLI_PATH?: string | undefined;
 };
 export {};
 //# sourceMappingURL=index.d.ts.map

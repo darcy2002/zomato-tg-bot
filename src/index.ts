@@ -2,6 +2,7 @@
  * API-first Zomato food ordering backend.
  * Entry: start Fastify, register routes, listen.
  */
+import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { config } from "./config/index.js";

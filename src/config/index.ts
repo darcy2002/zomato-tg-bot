@@ -13,6 +13,8 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1).optional(),
   TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
   BACKEND_URL: z.string().url().optional(),
+  /** When set, Telegram bot uses Gemini CLI for replies (e.g. "gemini" or "npx"). */
+  GEMINI_CLI_PATH: z.string().min(1).optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;

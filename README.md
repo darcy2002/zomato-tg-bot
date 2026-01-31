@@ -50,16 +50,28 @@ Node.js (TypeScript) backend for a Telegram bot that allows users to order food 
 
 ## Telegram Bot
 
-The Telegram bot is a thin client in the same repo. It receives messages, calls the backend API, and sends replies plus inline keyboards from `suggested_actions`.
+The Telegram bot is a thin client in the same repo. It can run in two modes:
 
-1. **Create a bot** with [@BotFather](https://t.me/BotFather) and copy the token.
+### Gemini CLI mode (recommended when Zomato OAuth is restricted)
+
+Messages are sent to **Google Gemini CLI** via a single persistent interactive session (PTY); Gemini can use the Zomato MCP server (whitelisted for Gemini). The CLI’s reply is sent back to the user on Telegram. No API server or backend is required for replies. One process keeps full context and avoids cold starts after the first message.
+
+1. **Install and authenticate Gemini CLI** (see [Gemini CLI](https://google-gemini.github.io/gemini-cli/)). Ensure Zomato MCP is configured for Gemini as in the [blog](https://medium.com/google-cloud/ordering-food-using-zomatos-mcp-server-with-google-gemini-cli-e80c0f86ef30).
 2. **Set env** in `.env`:
-   - `TELEGRAM_BOT_TOKEN=...` (from BotFather)
-   - `BACKEND_URL=http://localhost:3000` (or your API base URL)
-3. **Run the API server** in one terminal: `npm run dev`
-4. **Run the bot** in another terminal: `npm run dev:telegram` (or `npm run telegram` after `npm run build`)
+   - `TELEGRAM_BOT_TOKEN=...` (from [@BotFather](https://t.me/BotFather))
+   - `GEMINI_CLI_PATH=gemini` (or `GEMINI_CLI_PATH=npx` to use `npx @google/gemini-cli`)
+   - `DATABASE_URL=...` (still required by config; use a placeholder if you only run the bot)
+3. **Run only the bot**: `npm run dev:telegram`. A **single persistent Gemini CLI process** is started (interactive mode via PTY). Users send text → bot forwards the message to that process → reply is shown on Telegram. **Context:** the same process handles all messages, so Gemini keeps full conversation context (e.g. address and restaurant selected). **Latency:** the first message may take a few seconds while the process warms up; later messages are much faster because there is no cold start per message.
 
-The bot uses long polling. Users send text → backend returns reply and suggested actions → bot shows reply and inline buttons; tapping a button calls `/conversation/execute` and shows the next reply.
+### Backend API mode
+
+The bot calls the REST API for intent resolution, discovery, cart, and orders; replies and inline keyboards come from the backend.
+
+1. **Set env**: `TELEGRAM_BOT_TOKEN=...`, `BACKEND_URL=http://localhost:3000`
+2. **Run the API server** in one terminal: `npm run dev`
+3. **Run the bot** in another: `npm run dev:telegram`
+
+Users send text → backend returns reply and suggested actions → bot shows reply and inline buttons; tapping a button calls `/conversation/execute` and shows the next reply.
 
 ## Project Structure
 
@@ -87,7 +99,7 @@ src/
 
 ## Zomato MCP
 
-The [Zomato MCP server](https://github.com/Zomato/mcp-server-manifest) exposes restaurant discovery, menu browsing, cart, and order placement. This backend calls it via the Model Context Protocol (Streamable HTTP). MCP tool names in `src/mcp/tools.ts` are placeholders; align with the Zomato manifest when building against the live server. OAuth may be required for production; add token handling in `src/mcp/client.ts` when needed.
+The [Zomato MCP server](https://github.com/Zomato/mcp-server-manifest) exposes restaurant discovery, menu browsing, cart, and order placement. This backend calls it via the Model Context Protocol (Streamable HTTP). **Zomato currently whitelists only certain OAuth redirect URIs** (e.g. Claude, ChatGPT, VSCode, Gemini); requests from localhost or your own domain may be rejected. **To use Zomato from the Telegram bot without being whitelisted**, run the bot in **Gemini CLI mode** (`GEMINI_CLI_PATH=gemini`): the bot sends each user message to Gemini CLI, which can call Zomato MCP (Gemini is whitelisted), and the CLI’s reply is shown on Telegram. When using the backend API and the Zomato MCP call fails, the app **falls back to stub data**: sample restaurants and a sample menu are returned, and the bot reply explains that Zomato isn’t available. Check the server logs for `[discover_restaurants] Zomato MCP failed:` or `[view_menu] Zomato MCP failed:` to see the actual error. MCP tool names in `src/mcp/tools.ts` are placeholders; align with the Zomato manifest when building against the live server.
 
 ## License
 
