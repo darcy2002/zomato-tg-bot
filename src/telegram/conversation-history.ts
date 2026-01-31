@@ -3,7 +3,7 @@
  * We send the last N turns to Gemini as context so it remembers the flow (e.g. address chosen, restaurant selected).
  */
 
-const MAX_TURNS = 10; // last 10 messages (5 user + 5 assistant)
+const MAX_TURNS = 6; // last 6 messages (3 from user + 3 from bot)
 
 export interface HistoryTurn {
   role: "user" | "assistant";
@@ -32,7 +32,7 @@ export function appendTurn(chatId: number, role: "user" | "assistant", text: str
 
 /**
  * Build a single prompt string that includes recent conversation + current user message.
- * Gemini CLI only accepts one prompt, so we embed context in it.
+ * One-shot Gemini CLI only accepts one prompt, so we embed full context in it.
  */
 export function buildPromptWithHistory(chatId: number, currentMessage: string): string {
   const history = getHistory(chatId);
@@ -40,5 +40,5 @@ export function buildPromptWithHistory(chatId: number, currentMessage: string): 
     return currentMessage;
   }
   const lines = history.map((t) => `${t.role === "user" ? "User" : "Assistant"}: ${t.text}`);
-  return `[Previous conversation]\n${lines.join("\n")}\n\n[Current message from user]\nUser: ${currentMessage}`;
+  return `This is a continuing conversation. Previous messages:\n\n${lines.join("\n")}\n\nUser: ${currentMessage}`;
 }

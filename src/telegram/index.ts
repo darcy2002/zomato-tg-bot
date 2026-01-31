@@ -1,17 +1,16 @@
 /**
  * Telegram bot entry. Run with: npm run dev:telegram or npm run telegram
  * Requires: TELEGRAM_BOT_TOKEN; and either GEMINI_CLI_PATH or BACKEND_URL.
+ * When GEMINI_CLI_PATH is set, uses one-shot Gemini CLI with conversation history in each prompt.
  */
 import "dotenv/config";
 import { getTelegramConfig } from "./config.js";
-import { getGeminiSession, stopGeminiSession } from "./gemini-session.js";
 import { bot } from "./bot.js";
 
 async function main() {
   const { geminiCliPath } = getTelegramConfig();
   if (geminiCliPath) {
-    getGeminiSession({ cliPath: geminiCliPath });
-    console.log("Gemini CLI session started (single persistent process).");
+    console.log("Gemini CLI: one-shot mode (conversation context in each prompt).");
   }
   try {
     await bot.launch();
@@ -22,7 +21,6 @@ async function main() {
   }
 
   const shutdown = (signal: string) => {
-    stopGeminiSession();
     bot.stop(signal);
   };
   process.once("SIGINT", () => shutdown("SIGINT"));

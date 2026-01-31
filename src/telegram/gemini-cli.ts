@@ -1,6 +1,7 @@
 /**
  * Run Gemini CLI in headless mode: send a prompt and return the AI response.
  * Uses --prompt and --output-format json; parses stdout for the "response" field.
+ * One-shot per call; conversation context is embedded in the prompt by the caller.
  */
 import { spawn } from "child_process";
 
@@ -8,7 +9,7 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_CLI_PATH = "gemini";
 
 export interface GeminiCliConfig {
-  /** Path to gemini executable (e.g. "gemini" or "npx" with args). Default "gemini". */
+  /** Path to gemini executable (e.g. "gemini" or "npx"). Default "gemini". */
   cliPath: string;
   /** Timeout in ms. Default 120000. */
   timeoutMs?: number;
@@ -29,22 +30,35 @@ export type GeminiCliOutput = GeminiCliResult | GeminiCliError;
 /**
  * Run Gemini CLI with the given prompt. Returns the text response or an error.
  * Uses headless mode: gemini -p "<prompt>" --output-format json
+ * Prompt can include full conversation history (built by buildPromptWithHistory).
  */
 export function runGeminiCli(
   prompt: string,
-  config: GeminiCliConfig = { cliPath: DEFAULT_CLI_PATH }
+  config: GeminiCliConfig = { cliPath: DEFAULT_CLI_PATH },
 ): Promise<GeminiCliOutput> {
   const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const cliPath = config.cliPath.trim();
   const isNpx = cliPath === "npx" || cliPath.startsWith("npx ");
-  const [cmd, ...baseArgs] = isNpx
-    ? ["npx", "@google/gemini-cli", "-p", prompt, "--output-format", "json"]
-    : [cliPath, "-p", prompt, "--output-format", "json"];
+  const cwd = process.cwd();
+  const env = { ...process.env };
+
+  let cmd: string;
+  let args: string[];
+  if (isNpx) {
+    // npx on PATH; prompt as single arg so no shell escaping
+    cmd = "npx";
+    args = ["@google/gemini-cli", "-p", prompt, "--output-format", "json"];
+  } else {
+    cmd = cliPath;
+    args = ["-p", prompt, "--output-format", "json"];
+  }
 
   return new Promise((resolve) => {
-    const proc = spawn(cmd, baseArgs, {
+    const proc = spawn(cmd, args, {
       stdio: ["ignore", "pipe", "pipe"],
       shell: false,
+      cwd,
+      env,
     });
 
     let stdout = "";
@@ -67,7 +81,10 @@ export function runGeminiCli(
 
     proc.on("error", (err) => {
       clearTimeout(timer);
-      resolve({ ok: false, error: `Failed to start Gemini CLI: ${err.message}` });
+      resolve({
+        ok: false,
+        error: `Failed to start Gemini CLI: ${err.message}`,
+      });
     });
 
     proc.on("close", (code, signal) => {
@@ -80,7 +97,10 @@ export function runGeminiCli(
         return;
       }
       try {
-        const parsed = JSON.parse(stdout) as { response?: string; error?: { message?: string } };
+        const parsed = JSON.parse(stdout) as {
+          response?: string;
+          error?: { message?: string };
+        };
         if (parsed.response != null && typeof parsed.response === "string") {
           resolve({ ok: true, response: parsed.response.trim() });
           return;

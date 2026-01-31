@@ -10,6 +10,7 @@
     "dev": "tsx watch src/index.ts",
     "telegram": "node dist/telegram/index.js",
     "dev:telegram": "tsx watch src/telegram/index.ts",
+    "postinstall": "node scripts/fix-node-pty-mac.cjs",
     "db:migrate": "node -e \"require('fs').readdirSync('src/db/migrations').filter(f=>f.endsWith('.sql')).forEach(f=>console.log(f))\"",
     "test": "vitest run",
     "lint": "eslint src --ext .ts"
